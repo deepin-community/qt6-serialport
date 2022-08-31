@@ -1,0 +1,3 @@
+# Lintian gives a false positive for the globbing order.
+# See https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=970274
+qt6-serialport source: globbing-patterns-out-of-order debian/copyright examples/* *.qdoc examples/serialport/doc/*.qdoc
