@@ -6,13 +6,12 @@ Uploaders: Deepin Packages Builder <packages@deepin.org>
 Build-Depends: cmake (>= 3.18~),
                debhelper-compat (= 13),
                libgl-dev,
-               libqt6opengl6-dev (>= 6.2.4~),
-               libvulkan-dev [linux-any],
+               libqt6opengl6-dev (>= 6.4.2~),
                ninja-build,
                pkg-config,
                pkg-kde-tools,
-               qt6-base-dev (>= 6.2.4~),
-               qt6-base-private-dev (>= 6.2.4~),
+               qt6-base-dev (>= 6.4.2~),
+               qt6-base-private-dev (>= 6.4.2~),
 Standards-Version: 4.6.0
 Homepage: https://www.qt.io/developers/
 Rules-Requires-Root: no
@@ -28,11 +27,14 @@ Description: Qt 6 serial port support library
  .
  This package contains the library for Qt 6 Serial ports.
 
-Package: libqt6serialport6-dev
+Package: qt6-serialport-dev
+Provides: libqt6serialport6-dev (= ${binary:Version})
 Section: libdevel
 Architecture: any
 Multi-Arch: same
 Depends: libqt6serialport6 (= ${binary:Version}), qt6-base-dev, ${misc:Depends}
+Breaks: libqt6serialport6-dev (<< 6.2.4.1~)
+Replaces: libqt6serialport6-dev (<< 6.2.4.1~)
 Description: Qt 6 serial port development files
  Qt is a cross-platform C++ application framework. Qt's primary feature
  is its rich set of widgets that provide standard GUI functionality.

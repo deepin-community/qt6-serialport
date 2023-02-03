@@ -7,6 +7,7 @@ usr/include/${DEB_HOST_MULTIARCH}/qt6/QtSerialPort/qserialport.h
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtSerialPort/qserialportglobal.h
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtSerialPort/qserialportinfo.h
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtSerialPort/qtserialport-config.h
+usr/include/${DEB_HOST_MULTIARCH}/qt6/QtSerialPort/qtserialportexports.h
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtSerialPort/qtserialportversion.h
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6BuildInternals/StandaloneTests/QtSerialPortTestsConfig.cmake
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6SerialPort/Qt6SerialPortAdditionalTargetInfo.cmake
@@ -20,5 +21,6 @@ usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6SerialPort/Qt6SerialPortVersionlessTarget
 usr/lib/${DEB_HOST_MULTIARCH}/libQt6SerialPort.prl
 usr/lib/${DEB_HOST_MULTIARCH}/libQt6SerialPort.so
 usr/lib/${DEB_HOST_MULTIARCH}/metatypes/qt6serialport_none_metatypes.json
+usr/lib/${DEB_HOST_MULTIARCH}/pkgconfig/Qt6SerialPort.pc
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/mkspecs/modules/qt_lib_serialport.pri
 usr/share/qt6/modules/SerialPort.json
