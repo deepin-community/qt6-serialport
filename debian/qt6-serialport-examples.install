@@ -1,0 +1,11 @@
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/serialport/blockingreceiver/blockingreceiver
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/serialport/blockingsender/blockingsender
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/serialport/cenumerator/cenumerator
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/serialport/creaderasync/creaderasync
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/serialport/creadersync/creadersync
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/serialport/cwriterasync/cwriterasync
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/serialport/cwritersync/cwritersync
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/serialport/enumerator/enumerator
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/serialport/receiver/receiver
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/serialport/sender/sender
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/serialport/terminal/terminal

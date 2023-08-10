@@ -1,0 +1,9 @@
+Document: qt6-serialport-manual
+Title: Qt 6 serial port
+Author: The Qt Company Ltd
+Abstract: This is the HTML documentation for Qt 6 serial port library
+Section: Programming/C++
+
+Format: HTML
+Index: /usr/share/doc/qt6-serialport-doc-html/html/qtserialport/qtserialport.index
+Files: /usr/share/doc/qt6-serialport-doc-html/html/qtserialport/*.html

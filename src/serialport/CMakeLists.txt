@@ -16,15 +16,11 @@ qt_internal_add_module(SerialPort
         Qt::Core
     PRIVATE_MODULE_INTERFACE
         Qt::CorePrivate
+    GENERATE_CPP_EXPORTS
 )
 
 ## Scopes:
 #####################################################################
-
-qt_internal_extend_target(SerialPort CONDITION config_ntddmodm
-    DEFINES
-        QT_NO_REDEFINE_GUID_DEVINTERFACE_MODEM
-)
 
 qt_internal_extend_target(SerialPort CONDITION QT_FEATURE_libudev AND UNIX
    DEFINES
@@ -37,7 +33,8 @@ qt_internal_extend_target(SerialPort CONDITION WIN32
     SOURCES
         qserialport_win.cpp
         qserialportinfo_win.cpp
-        qtntdll_p.h
+        qwinoverlappedionotifier.cpp
+        qwinoverlappedionotifier_p.h
     LIBRARIES
         advapi32
         setupapi
