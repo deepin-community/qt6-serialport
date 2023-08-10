@@ -1,11 +1,160 @@
-qt6-serialport (6.2.4.1-1+dde) stable; urgency=medium
+qt6-serialport (6.4.2-4) unstable; urgency=medium
 
-  * Adapt to V23.
+  * Team upload to unstable.
 
- -- Lu YaNing <luyaning@uniontech.com>  Sun, 09 Oct 2022 16:53:49 +0800
+  [ Patrick Franz ]
+  * Remove build-dependency on libqt6opengl6-dev as it has been merged
+    into qt6-base-dev.
 
-qt6-serialport (6.2.4-1+dde) stable; urgency=medium
+ -- Lisandro Damián Nicanor Pérez Meyer <lisandro@debian.org>  Mon, 24 Jul 2023 09:13:36 -0300
 
-  * ['Rebuild  against by  current gcc 11.2']
+qt6-serialport (6.4.2-3) experimental; urgency=medium
 
- -- Deepin Packages Builder <packages@deepin.org>  Wed, 31 Aug 2022 15:00:27 +0800
+  * Team upload.
+  * Add documentation and examples packages.
+
+ -- Lisandro Damián Nicanor Pérez Meyer <lisandro@debian.org>  Sun, 23 Jul 2023 10:48:05 -0300
+
+qt6-serialport (6.4.2-2) unstable; urgency=medium
+
+  [ Patrick Franz ]
+  * Fix FTCBFS: Pass QT_HOST_PATH to cmake, thx to Helmut Grohne
+    (Closes: #1030384).
+
+ -- Patrick Franz <deltaone@debian.org>  Sat, 04 Feb 2023 13:32:55 +0100
+
+qt6-serialport (6.4.2-1) unstable; urgency=medium
+
+  [ Patrick Franz ]
+  * Switch to the official 6.4.2 tarball, the tarball is the same.
+
+ -- Patrick Franz <deltaone@debian.org>  Tue, 24 Jan 2023 12:38:10 +0100
+
+qt6-serialport (6.4.2~rc1-3) unstable; urgency=medium
+
+  [ Patrick Franz ]
+  * Add a Provides for libqt6serialport6-dev.
+
+ -- Patrick Franz <deltaone@debian.org>  Sat, 31 Dec 2022 14:39:31 +0100
+
+qt6-serialport (6.4.2~rc1-2) unstable; urgency=medium
+
+  [ Patrick Franz ]
+  * Upload to unstable.
+
+ -- Patrick Franz <deltaone@debian.org>  Fri, 30 Dec 2022 16:58:59 +0100
+
+qt6-serialport (6.4.2~rc1-1) experimental; urgency=medium
+
+  [ Patrick Franz ]
+  * New upstream release (6.4.2).
+  * Bump Qt B-Ds to 6.4.2.
+  * Bump Standards-Version to 4.6.2 (no changes needed).
+
+ -- Patrick Franz <deltaone@debian.org>  Tue, 27 Dec 2022 22:27:34 +0100
+
+qt6-serialport (6.4.1-2) experimental; urgency=medium
+
+  [ Patrick Franz ]
+  * Rename libqt6serialport6-dev to qt6-serialport-dev.
+  * Enable link time optimization.
+
+ -- Patrick Franz <deltaone@debian.org>  Wed, 30 Nov 2022 20:08:58 +0100
+
+qt6-serialport (6.4.1-1) experimental; urgency=medium
+
+  [ Patrick Franz ]
+  * New upstream release (6.4.1).
+  * Bump Qt B-Ds to 6.4.1.
+
+ -- Patrick Franz <deltaone@debian.org>  Tue, 15 Nov 2022 23:29:55 +0100
+
+qt6-serialport (6.4.0-1) experimental; urgency=medium
+
+  [ Lisandro Damián Nicanor Pérez Meyer ]
+  * Remove libvulkan-dev as a build dependency, it was really needed as a
+    qt6-base-dev dependency due to a CMake file.
+  * Add debian/[.gitignore .gitattributes].
+  * Bump minimum CMake version in order to get pkg-config's .pc files.
+
+  [ Patrick Franz ]
+  * Increase CMake verbosity level.
+  * New upstream release (6.4.0).
+  * Bump Qt B-Ds to 6.4.0.
+  * Update symbols from buildlogs.
+
+ -- Patrick Franz <deltaone@debian.org>  Wed, 05 Oct 2022 20:45:24 +0200
+
+qt6-serialport (6.3.1-2) unstable; urgency=medium
+
+  [ Patrick Franz ]
+  * Upload to unstable.
+
+ -- Patrick Franz <deltaone@debian.org>  Mon, 15 Aug 2022 19:23:51 +0200
+
+qt6-serialport (6.3.1-1) experimental; urgency=medium
+
+  [ Patrick Franz ]
+  * New upstream release (6.3.1).
+  * Bump Qt B-Ds to 6.3.1.
+  * Bump Standards-Version to 4.6.1 (no changes needed).
+  * Update list of installed files.
+
+ -- Patrick Franz <deltaone@debian.org>  Fri, 15 Jul 2022 20:23:50 +0200
+
+qt6-serialport (6.3.0-1) experimental; urgency=medium
+
+  [ Patrick Franz ]
+  * New upstream release (6.3.0).
+  * Bump Qt B-Ds to 6.3.0.
+  * Update list of installed files.
+
+ -- Patrick Franz <deltaone@debian.org>  Sun, 29 May 2022 20:52:22 +0200
+
+qt6-serialport (6.2.4-2) unstable; urgency=medium
+
+  [ Patrick Franz ]
+  * Upload to unstable.
+
+ -- Patrick Franz <deltaone@debian.org>  Fri, 22 Apr 2022 20:07:22 +0200
+
+qt6-serialport (6.2.4-1) experimental; urgency=medium
+
+  [ Patrick Franz ]
+  * New upstream release (6.2.4).
+  * Bump Qt B-Ds to 6.2.4.
+
+ -- Patrick Franz <deltaone@debian.org>  Tue, 29 Mar 2022 20:38:04 +0200
+
+qt6-serialport (6.2.2-2) unstable; urgency=medium
+
+  [ Patrick Franz ]
+  * Upload to unstable.
+
+ -- Patrick Franz <deltaone@debian.org>  Tue, 15 Feb 2022 22:00:12 +0100
+
+qt6-serialport (6.2.2-1) experimental; urgency=medium
+
+  [ Lu YaNing ]
+  * Fix d/copyright Upstream-Name.
+  * List cmake files in detail.
+
+  [ Patrick Franz ]
+  * New upstream release (6.2.2).
+  * Bump Qt B-Ds to 6.2.2.
+  * Update installed files.
+
+ -- Patrick Franz <deltaone@debian.org>  Thu, 02 Dec 2021 08:43:21 +0100
+
+qt6-serialport (6.2.1-2) experimental; urgency=medium
+
+  [ Patrick Franz ]
+  * Source-only upload to experimental.
+
+ -- Patrick Franz <deltaone@debian.org>  Sun, 21 Nov 2021 02:33:53 +0100
+
+qt6-serialport (6.2.1-1) experimental; urgency=medium
+
+  * Initial release (Closes: #998819)
+
+ -- Patrick Franz <deltaone@debian.org>  Mon, 08 Nov 2021 10:23:56 +0100
