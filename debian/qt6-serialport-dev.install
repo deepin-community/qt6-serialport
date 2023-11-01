@@ -20,7 +20,7 @@ usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6SerialPort/Qt6SerialPortTargets.cmake
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6SerialPort/Qt6SerialPortVersionlessTargets.cmake
 usr/lib/${DEB_HOST_MULTIARCH}/libQt6SerialPort.prl
 usr/lib/${DEB_HOST_MULTIARCH}/libQt6SerialPort.so
-usr/lib/${DEB_HOST_MULTIARCH}/metatypes/qt6serialport_none_metatypes.json
 usr/lib/${DEB_HOST_MULTIARCH}/pkgconfig/Qt6SerialPort.pc
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/metatypes/qt6serialport_none_metatypes.json
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/mkspecs/modules/qt_lib_serialport.pri
-usr/share/qt6/modules/SerialPort.json
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/modules/SerialPort.json
