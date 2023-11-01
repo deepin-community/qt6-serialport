@@ -1,3 +1,13 @@
+qt6-serialport (6.6.0-1) experimental; urgency=medium
+
+  [ Patrick Franz ]
+  * New upstream release (6.6.0).
+  * Bump Qt B-Ds to 6.6.0.
+  * Update list of installed files.
+  * Update symbols from buildlogs.
+
+ -- Patrick Franz <deltaone@debian.org>  Fri, 13 Oct 2023 20:11:39 +0200
+
 qt6-serialport (6.4.2-4) unstable; urgency=medium
 
   * Team upload to unstable.
