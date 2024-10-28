@@ -18,6 +18,7 @@ usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6SerialPort/Qt6SerialPortDependencies.cmak
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6SerialPort/Qt6SerialPortTargets-none.cmake
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6SerialPort/Qt6SerialPortTargets.cmake
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6SerialPort/Qt6SerialPortVersionlessTargets.cmake
+usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6SerialPort/*.cmake
 usr/lib/${DEB_HOST_MULTIARCH}/libQt6SerialPort.prl
 usr/lib/${DEB_HOST_MULTIARCH}/libQt6SerialPort.so
 usr/lib/${DEB_HOST_MULTIARCH}/pkgconfig/Qt6SerialPort.pc
