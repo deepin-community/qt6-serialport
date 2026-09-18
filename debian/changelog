@@ -1,4 +1,4 @@
-qt6-serialport (6.8.0-0deepindeepin1) unstable; urgency=medium
+qt6-serialport (6.8.0-0deepin1) unstable; urgency=medium
 
   * Rebuild with LTO enabled (dpkg vendor feature optimize/lto).
 
