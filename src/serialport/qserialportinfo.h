@@ -1,6 +1,7 @@
 // Copyright (C) 2012 Denis Shienkov <denis.shienkov@gmail.com>
 // Copyright (C) 2012 Laszlo Papp <lpapp@kde.org>
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+// Qt-Security score:significant reason:default
 
 #ifndef QSERIALPORTINFO_H
 #define QSERIALPORTINFO_H
@@ -40,7 +41,7 @@ public:
     bool hasVendorIdentifier() const;
     bool hasProductIdentifier() const;
 
-    bool isNull() const;
+    bool isNull() const { return !d_ptr; }
 
     static QList<qint32> standardBaudRates();
     static QList<QSerialPortInfo> availablePorts();
@@ -52,9 +53,6 @@ private:
     friend QList<QSerialPortInfo> availablePortsByFiltersOfDevices(bool &ok);
     std::unique_ptr<QSerialPortInfoPrivate> d_ptr;
 };
-
-inline bool QSerialPortInfo::isNull() const
-{ return !d_ptr; }
 
 QT_END_NAMESPACE
 

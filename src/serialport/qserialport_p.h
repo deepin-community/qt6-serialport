@@ -2,6 +2,7 @@
 // Copyright (C) 2011 Sergey Belyashov <Sergey.Belyashov@gmail.com>
 // Copyright (C) 2012 Laszlo Papp <lpapp@kde.org>
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+// Qt-Security score:significant reason:default
 
 #ifndef QSERIALPORT_P_H
 #define QSERIALPORT_P_H
@@ -130,6 +131,7 @@ public:
     static QList<qint32> standardBaudRates();
 
     qint64 readBufferMaxSize = 0;
+    qint64 writeBufferMaxSize = 0;
 
     void setBindableError(QSerialPort::SerialPortError error)
     { setError(error); }
@@ -168,6 +170,8 @@ public:
         &QSerialPortPrivate::setBindableBreakEnabled, false)
 
     bool startAsyncRead();
+
+    bool emittedReadyRead = false;
 
 #if defined(Q_OS_WIN32)
 
@@ -232,22 +236,25 @@ public:
     bool readNotification();
     bool startAsyncWrite();
     bool completeAsyncWrite();
+    void handleException();
 
     struct termios restoredTermios;
     int descriptor = -1;
 
     QSocketNotifier *readNotifier = nullptr;
     QSocketNotifier *writeNotifier = nullptr;
+    QSocketNotifier *exceptionNotifier = nullptr;
 
     bool readPortNotifierCalled = false;
     bool readPortNotifierState = false;
     bool readPortNotifierStateSet = false;
 
-    bool emittedReadyRead = false;
     bool emittedBytesWritten = false;
 
     qint64 pendingBytesWritten = 0;
     bool writeSequenceStarted = false;
+
+    bool gotException = false;
 
     std::unique_ptr<QLockFile> lockFileScopedPointer;
 

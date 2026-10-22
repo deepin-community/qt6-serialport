@@ -8,6 +8,19 @@
 
 #include <QThread>
 
+#ifdef Q_OS_UNIX
+#include <private/qcore_unix_p.h>
+#include <termios.h>
+#elif defined(Q_OS_WIN)
+#include <QtCore/qt_windows.h>
+#endif
+
+#ifdef Q_OS_QNX
+#  ifdef open
+#    undef open
+#  endif
+#endif
+
 Q_DECLARE_METATYPE(QSerialPort::SerialPortError);
 Q_DECLARE_METATYPE(QSerialPort::BaudRate);
 Q_DECLARE_METATYPE(QSerialPort::DataBits);
@@ -108,7 +121,17 @@ private slots:
     void readWriteWithDifferentBaudRate_data();
     void readWriteWithDifferentBaudRate();
 
+    void readWriteWithMarkSpaceParity_data();
+    void readWriteWithMarkSpaceParity();
+
     void bindingsAndProperties();
+
+    void restoreSettingsOnClose();
+
+    void readyReadNotRecursive();
+
+    void writeBufferSizeLimit_data();
+    void writeBufferSizeLimit();
 
 protected slots:
     void handleBytesWrittenAndExitLoopSlot(qint64 bytesWritten);
@@ -179,6 +202,7 @@ void tst_QSerialPort::defaultConstruct()
     QCOMPARE(serialPort.pinoutSignals(), QSerialPort::NoSignal);
     QCOMPARE(serialPort.isRequestToSend(), false);
     QCOMPARE(serialPort.isDataTerminalReady(), false);
+    QCOMPARE(serialPort.settingsRestoredOnClose(), true);
 
     // QIODevice
     QCOMPARE(serialPort.openMode(), QIODevice::NotOpen);
@@ -861,14 +885,14 @@ class AsyncWriterByTimer : public QObject
 {
     Q_OBJECT
 public:
-    explicit AsyncWriterByTimer(
-            QSerialPort &port, Qt::ConnectionType connectionType, const QByteArray &dataToWrite)
-        : serialPort(port), writeChunkSize(0)
+    explicit AsyncWriterByTimer(QSerialPort &port, Qt::ConnectionType connectionType,
+                                const QByteArray &dataToWrite, int interval = 0)
+        : serialPort(port), writeChunkSize(0), timerMsec(interval)
     {
         writeBuffer.setData(dataToWrite);
         writeBuffer.open(QIODevice::ReadOnly);
         connect(&timer, &QTimer::timeout, this, &AsyncWriterByTimer::send, connectionType);
-        timer.start(0);
+        timer.start(timerMsec);
     }
 
 private slots:
@@ -885,6 +909,7 @@ private:
     QBuffer writeBuffer;
     int writeChunkSize;
     QTimer timer;
+    int timerMsec;
 };
 
 void tst_QSerialPort::asynchronousWriteByTimer_data()
@@ -1262,6 +1287,52 @@ void tst_QSerialPort::readWriteWithDifferentBaudRate()
     }
 }
 
+void tst_QSerialPort::readWriteWithMarkSpaceParity_data()
+{
+    QTest::addColumn<QSerialPort::Parity>("parity");
+
+    QTest::newRow("parity_space") << QSerialPort::SpaceParity;
+    QTest::newRow("parity_mark") << QSerialPort::MarkParity;
+}
+
+void tst_QSerialPort::readWriteWithMarkSpaceParity()
+{
+    QFETCH(const QSerialPort::Parity, parity);
+
+    auto setupPort = [&parity](QSerialPort &port) {
+        port.setBaudRate(QSerialPort::Baud9600);
+        port.setParity(parity);
+        port.setDataBits(QSerialPort::Data8);
+        port.setStopBits(QSerialPort::OneStop);
+    };
+
+    QSerialPort sender(m_senderPortName);
+    QSignalSpy senderSpy(&sender, &QSerialPort::bytesWritten);
+    setupPort(sender);
+    QVERIFY(sender.open(QIODevice::ReadWrite));
+
+    QSerialPort receiver(m_receiverPortName);
+    QSignalSpy receiverSpy(&receiver, &QSerialPort::readyRead);
+    setupPort(receiver);
+    QVERIFY(receiver.open(QIODevice::ReadWrite));
+
+    const QByteArray data("some data");
+    const qint64 written = sender.write(data);
+    QCOMPARE(written, qint64(data.size()));
+    QTRY_COMPARE(senderSpy.size(), 1);
+    QCOMPARE(senderSpy.at(0).at(0).value<qint64>(), written);
+
+    QTRY_COMPARE_GE(receiver.bytesAvailable(), written);
+    QCOMPARE_GE(receiverSpy.size(), 1); // we should get *at least one* signal
+
+#if !defined(Q_OS_UNIX) || defined(CMSPAR)
+    // On UNIX with no CMSPAR the result is flaky, so we cannot even use
+    // QEXPECT_FAIL(). See QTBUG-131679.
+    const QByteArray receivedData = receiver.readAll();
+    QCOMPARE(receivedData, data);
+#endif
+}
+
 void tst_QSerialPort::bindingsAndProperties()
 {
     QSerialPort sp;
@@ -1347,6 +1418,338 @@ void tst_QSerialPort::bindingsAndProperties()
         sp.setBreakEnabled(true);
         QCOMPARE(sp.error(), QSerialPort::SerialPortError::NotOpenError);
     }
+}
+
+class PlatformSettings
+{
+public:
+    explicit PlatformSettings(const QString &portName) : portInfo(portName) {}
+
+    void getPortSettings();
+    void restorePortSettings();
+private:
+    friend bool operator==(const PlatformSettings &lhs, const PlatformSettings &rhs);
+    friend bool operator!=(const PlatformSettings &lhs, const PlatformSettings &rhs)
+    { return !operator==(lhs, rhs); }
+
+
+    QSerialPortInfo portInfo;
+#ifdef Q_OS_UNIX
+    termios tio;
+#elif defined(Q_OS_WIN)
+    DCB dcb;
+    COMMTIMEOUTS commTimeouts;
+#endif
+};
+
+void PlatformSettings::getPortSettings()
+{
+#ifdef Q_OS_UNIX
+    const int flags = O_NOCTTY | O_NONBLOCK | O_RDONLY;
+    int descriptor = qt_safe_open(portInfo.systemLocation().toLocal8Bit().constData(), flags);
+    ::memset(&tio, 0, sizeof(termios));
+    ::tcgetattr(descriptor, &tio);
+    qt_safe_close(descriptor);
+#elif defined(Q_OS_WIN)
+    auto handle = ::CreateFile(reinterpret_cast<const wchar_t*>(portInfo.systemLocation().utf16()),
+                               GENERIC_READ, 0, nullptr, OPEN_EXISTING, FILE_FLAG_OVERLAPPED,
+                               nullptr);
+    ::ZeroMemory(&dcb, sizeof(DCB));
+    dcb.DCBlength = sizeof(DCB);
+    ::GetCommState(handle, &dcb);
+    ::GetCommTimeouts(handle, &commTimeouts);
+    CloseHandle(handle);
+#endif
+}
+
+void PlatformSettings::restorePortSettings()
+{
+#ifdef Q_OS_UNIX
+    const int flags = O_NOCTTY | O_NONBLOCK | O_RDONLY;
+    int descriptor = qt_safe_open(portInfo.systemLocation().toLocal8Bit().constData(), flags);
+    ::tcsetattr(descriptor, TCSANOW, &tio);
+    qt_safe_close(descriptor);
+#elif defined(Q_OS_WIN)
+    auto handle = ::CreateFile(reinterpret_cast<const wchar_t*>(portInfo.systemLocation().utf16()),
+                               GENERIC_READ, 0, nullptr, OPEN_EXISTING, FILE_FLAG_OVERLAPPED,
+                               nullptr);
+    ::SetCommState(handle, &dcb);
+    ::SetCommTimeouts(handle, &commTimeouts);
+    CloseHandle(handle);
+#endif
+}
+
+bool operator==(const PlatformSettings &lhs, const PlatformSettings &rhs)
+{
+#ifdef Q_OS_UNIX
+    // compare only the minimal subset
+    const bool tioEqual =
+            lhs.tio.c_iflag == rhs.tio.c_iflag
+            && lhs.tio.c_oflag == rhs.tio.c_oflag
+            && lhs.tio.c_cflag == rhs.tio.c_cflag
+            && lhs.tio.c_lflag == rhs.tio.c_lflag;
+
+    if (tioEqual) {
+        const auto lhsISpeed = ::cfgetispeed(&lhs.tio);
+        const auto lhsOSpeed = ::cfgetospeed(&lhs.tio);
+
+        const auto rhsISpeed = ::cfgetispeed(&rhs.tio);
+        const auto rhsOSpeed = ::cfgetospeed(&rhs.tio);
+
+        return lhsISpeed == rhsISpeed && lhsOSpeed == rhsOSpeed;
+    }
+    return tioEqual;
+#elif defined(Q_OS_WIN)
+    const bool timeoutsEqual =
+        lhs.commTimeouts.ReadIntervalTimeout == rhs.commTimeouts.ReadIntervalTimeout
+        && lhs.commTimeouts.ReadTotalTimeoutMultiplier == rhs.commTimeouts.ReadTotalTimeoutMultiplier
+        && lhs.commTimeouts.ReadTotalTimeoutConstant == rhs.commTimeouts.ReadTotalTimeoutConstant
+        && lhs.commTimeouts.WriteTotalTimeoutMultiplier == rhs.commTimeouts.WriteTotalTimeoutMultiplier
+        && lhs.commTimeouts.WriteTotalTimeoutConstant == rhs.commTimeouts.WriteTotalTimeoutConstant;
+
+    const bool dcbEqual =
+        lhs.dcb.DCBlength == rhs.dcb.DCBlength
+        && lhs.dcb.BaudRate == rhs.dcb.BaudRate
+        && lhs.dcb.fBinary == rhs.dcb.fBinary
+        && lhs.dcb.fParity == rhs.dcb.fParity
+        && lhs.dcb.fOutxCtsFlow == rhs.dcb.fOutxCtsFlow
+        && lhs.dcb.fOutxDsrFlow == rhs.dcb.fOutxDsrFlow
+        && lhs.dcb.fDtrControl == rhs.dcb.fDtrControl
+        && lhs.dcb.fDsrSensitivity == rhs.dcb.fDsrSensitivity
+        && lhs.dcb.fTXContinueOnXoff == rhs.dcb.fTXContinueOnXoff
+        && lhs.dcb.fOutX == rhs.dcb.fOutX
+        && lhs.dcb.fInX == rhs.dcb.fInX
+        && lhs.dcb.fErrorChar == rhs.dcb.fErrorChar
+        && lhs.dcb.fNull == rhs.dcb.fNull
+        && lhs.dcb.fRtsControl == rhs.dcb.fRtsControl
+        && lhs.dcb.fAbortOnError == rhs.dcb.fAbortOnError
+        && lhs.dcb.wReserved == rhs.dcb.wReserved
+        && lhs.dcb.XonLim == rhs.dcb.XonLim
+        && lhs.dcb.XoffLim == rhs.dcb.XoffLim
+        && lhs.dcb.ByteSize == rhs.dcb.ByteSize
+        && lhs.dcb.Parity == rhs.dcb.Parity
+        && lhs.dcb.StopBits == rhs.dcb.StopBits
+        && lhs.dcb.XonChar == rhs.dcb.XonChar
+        && lhs.dcb.XoffChar == rhs.dcb.XoffChar
+        && lhs.dcb.ErrorChar == rhs.dcb.ErrorChar
+        && lhs.dcb.EofChar == rhs.dcb.EofChar
+        && lhs.dcb.EvtChar == rhs.dcb.EvtChar;
+
+    return timeoutsEqual && dcbEqual;
+#endif
+    // general case
+    return false;
+}
+
+void tst_QSerialPort::restoreSettingsOnClose()
+{
+#ifndef Q_OS_APPLE
+    PlatformSettings initialSettings(m_senderPortName);
+    initialSettings.getPortSettings();
+
+    QSerialPort port(m_senderPortName);
+    QVERIFY(port.settingsRestoredOnClose());
+    QSignalSpy restoreOnCloseSpy(&port, &QSerialPort::settingsRestoredOnCloseChanged);
+
+    port.setSettingsRestoredOnClose(false);
+    QVERIFY(!port.settingsRestoredOnClose());
+    QCOMPARE(restoreOnCloseSpy.size(), 1);
+    QCOMPARE(qvariant_cast<bool>(restoreOnCloseSpy.at(0).at(0)), false);
+
+    port.setBaudRate(QSerialPort::Baud115200);
+    port.setDataBits(QSerialPort::Data7);
+    port.setStopBits(QSerialPort::OneStop);
+    port.setParity(QSerialPort::OddParity);
+    port.setFlowControl(QSerialPort::HardwareControl);
+
+    // Open the port - new settings should be applied
+    QVERIFY(port.open(QIODevice::ReadOnly));
+    // Close the port - the same new settings should be kept
+    port.close();
+
+    PlatformSettings settingsAfterClose(m_senderPortName);
+    settingsAfterClose.getPortSettings();
+
+    QCOMPARE_NE(settingsAfterClose, initialSettings);
+
+    port.setSettingsRestoredOnClose(true);
+    QVERIFY(port.settingsRestoredOnClose());
+    QCOMPARE(restoreOnCloseSpy.size(), 2);
+    QCOMPARE(qvariant_cast<bool>(restoreOnCloseSpy.at(1).at(0)), true);
+
+    port.setBaudRate(QSerialPort::Baud57600);
+    port.setDataBits(QSerialPort::Data8);
+    port.setParity(QSerialPort::NoParity);
+    port.setFlowControl(QSerialPort::NoFlowControl);
+
+    // Open the port - new settings should be applied
+    QVERIFY(port.open(QIODevice::ReadOnly));
+    // Close the port - the old settings should be restored
+    port.close();
+
+    PlatformSettings settingsAfterSecondClose(m_senderPortName);
+    settingsAfterSecondClose.getPortSettings();
+    QCOMPARE(settingsAfterSecondClose, settingsAfterClose);
+    QCOMPARE_NE(settingsAfterSecondClose, initialSettings);
+
+    // restore the original settings
+    initialSettings.restorePortSettings();
+#else
+    QSKIP("macOS always resets the port on close.");
+#endif
+}
+
+// The reader connects to readyRead() and then calls waitForReadyRead()
+// inside the slot.
+// The tst_QSerialPort::readyReadNotRecursive() test needs to make sure
+// that the slot is entered only once.
+class SemiBlockingReader : public QObject
+{
+    Q_OBJECT
+public:
+    explicit SemiBlockingReader(const QString &portName)
+        : QObject(nullptr), m_portName(portName)
+    {}
+
+    int numSlotCalls() const { return m_numCalls; }
+    QByteArray receivedData() const { return m_data; }
+
+public slots:
+    void start()
+    {
+        m_reader = new QSerialPort(m_portName, this);
+        connect(m_reader, &QSerialPort::readyRead, this, &SemiBlockingReader::readData);
+        if (!m_reader->open(QIODevice::ReadOnly))
+            emit error();
+    }
+
+private slots:
+    void readData()
+    {
+        ++m_numCalls;
+        m_data.append(m_reader->readAll());
+        while (m_reader->waitForReadyRead(1000))
+            m_data.append(m_reader->readAll());
+        emit allDataReceived();
+    }
+
+signals:
+    void error();
+    void allDataReceived();
+
+private:
+    QString m_portName;
+    QByteArray m_data;
+    QSerialPort *m_reader = nullptr;
+    int m_numCalls = 0;
+};
+
+void tst_QSerialPort::readyReadNotRecursive()
+{
+    SemiBlockingReader reader(m_receiverPortName);
+    QThread readerThread;
+    connect(&readerThread, &QThread::started, &reader, &SemiBlockingReader::start);
+    connect(&reader, &SemiBlockingReader::allDataReceived, &readerThread, &QThread::quit);
+    int errorCount = 0;
+    connect(&reader, &SemiBlockingReader::error, this, [&] {
+        ++errorCount;
+        readerThread.quit();
+    });
+    bool readerThreadFinished = false;
+    connect(&readerThread, &QThread::finished, this, [&] { readerThreadFinished = true; });
+
+    reader.moveToThread(&readerThread);
+    readerThread.start();
+
+    QSerialPort senderPort(m_senderPortName);
+    QVERIFY(senderPort.open(QSerialPort::WriteOnly));
+    [[maybe_unused]] AsyncWriterByTimer writer(senderPort, Qt::DirectConnection,
+                                               alphabetArray, 50);
+
+    QTRY_VERIFY(readerThreadFinished);
+    QCOMPARE(errorCount, 0);
+    QCOMPARE(reader.numSlotCalls(), 1);
+    QCOMPARE(reader.receivedData(), alphabetArray);
+}
+
+void tst_QSerialPort::writeBufferSizeLimit_data()
+{
+    QTest::addColumn<qint64>("writeBufferSize");
+
+    QTest::newRow("NoLimit") << 0LL;
+    QTest::newRow("8Kb") << 8 * 1024LL;
+}
+
+void tst_QSerialPort::writeBufferSizeLimit()
+{
+    QFETCH(const qint64, writeBufferSize);
+
+    auto setupPort = [](QSerialPort &port) {
+        port.setBaudRate(QSerialPort::Baud115200);
+        port.setDataBits(QSerialPort::Data8);
+        port.setParity(QSerialPort::NoParity);
+        port.setStopBits(QSerialPort::OneStop);
+    };
+
+    QSerialPort sender(m_senderPortName);
+    QCOMPARE_EQ(sender.writeBufferSize(), 0); // unlimited by default
+    QSignalSpy senderSpy(&sender, &QSerialPort::bytesWritten);
+    setupPort(sender);
+    sender.setWriteBufferSize(writeBufferSize);
+    QCOMPARE_EQ(sender.writeBufferSize(), writeBufferSize);
+    QVERIFY(sender.open(QIODevice::ReadWrite));
+
+    QSerialPort receiver(m_receiverPortName);
+    setupPort(receiver);
+    QVERIFY(receiver.open(QIODevice::ReadWrite));
+
+    static constexpr qsizetype DataSize = 16 * 1024;
+    QVERIFY(DataSize > writeBufferSize); // to make sure that the test works correctly
+
+    const QByteArray data(DataSize, 'a');
+
+    qint64 written = 0;
+
+    const bool inputBufferLimited = (writeBufferSize > 0);
+    if (inputBufferLimited) {
+        written = sender.write(data);
+        QCOMPARE_EQ(written, writeBufferSize);
+        // Writing again should return 0, as the buffer is full
+        written = sender.write(data);
+        QCOMPARE_EQ(written, 0); // can't add more
+
+        // Wait until something is actually written to the device.
+        // NOTE: If the test fails here due to a timeout, you might
+        // want to use QTRY_VERIFY_WITH_TIMEOUT() and a larger interval.
+        // The behavior can depend on a OS & driver combination!
+        QTRY_VERIFY(senderSpy.size() > 0);
+        qint64 reportedWritten = 0;
+        for (const auto &val : std::as_const(senderSpy))
+            reportedWritten += val.at(0).toULongLong();
+
+        // Now we should be able to write at least reportedWritten bytes
+        written = sender.write(data);
+        QCOMPARE_GE(written, reportedWritten);
+    } else {
+        // Buffer is unlimited -> we should always write as much as we can
+        written = sender.write(data);
+        QCOMPARE_EQ(written, data.size());
+
+        written = sender.write(data);
+        QCOMPARE_EQ(written, data.size());
+
+        // Wait until something is actually written to the device.
+        // NOTE: If the test fails here due to a timeout, you might
+        // want to use QTRY_VERIFY_WITH_TIMEOUT() and a larger interval.
+        // The behavior can depend on a OS & driver combination!
+        QTRY_VERIFY(senderSpy.size() > 0);
+
+        written = sender.write(data);
+        QCOMPARE_EQ(written, data.size());
+    }
+
+    receiver.close();
+    sender.close();
 }
 
 QTEST_MAIN(tst_QSerialPort)
