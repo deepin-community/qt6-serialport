@@ -2,6 +2,7 @@
 // Copyright (C) 2011 Sergey Belyashov <Sergey.Belyashov@gmail.com>
 // Copyright (C) 2012 Laszlo Papp <lpapp@kde.org>
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+// Qt-Security score:critical reason:data-parser
 
 #include "qserialportinfo.h"
 #include "qserialportinfo_p.h"
@@ -123,7 +124,7 @@ QList<QSerialPortInfo> QSerialPortInfo::availablePorts()
                            CFSTR(kIOSerialBSDAllTypes));
 
     io_iterator_t serialPortIterator = 0;
-    if (::IOServiceGetMatchingServices(kIOMasterPortDefault, serialPortDictionary,
+    if (::IOServiceGetMatchingServices(kIOMainPortDefault, serialPortDictionary,
                                        &serialPortIterator) != KERN_SUCCESS) {
         return QList<QSerialPortInfo>();
     }

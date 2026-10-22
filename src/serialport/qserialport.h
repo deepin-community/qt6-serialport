@@ -1,6 +1,7 @@
 // Copyright (C) 2012 Denis Shienkov <denis.shienkov@gmail.com>
 // Copyright (C) 2013 Laszlo Papp <lpapp@kde.org>
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+// Qt-Security score:significant reason:default
 
 #ifndef QSERIALPORT_H
 #define QSERIALPORT_H
@@ -34,6 +35,9 @@ class Q_SERIALPORT_EXPORT QSerialPort : public QIODevice
     Q_PROPERTY(SerialPortError error READ error RESET clearError NOTIFY errorOccurred BINDABLE bindableError)
     Q_PROPERTY(bool breakEnabled READ isBreakEnabled WRITE setBreakEnabled NOTIFY breakEnabledChanged
                 BINDABLE bindableIsBreakEnabled)
+    Q_PROPERTY(bool settingsRestoredOnClose READ settingsRestoredOnClose
+                WRITE setSettingsRestoredOnClose NOTIFY settingsRestoredOnCloseChanged
+                REVISION(6, 9))
 
 #if defined(Q_OS_WIN32)
     typedef void* Handle;
@@ -176,6 +180,9 @@ public:
     qint64 readBufferSize() const;
     void setReadBufferSize(qint64 size);
 
+    qint64 writeBufferSize() const;
+    void setWriteBufferSize(qint64 size);
+
     bool isSequential() const override;
 
     qint64 bytesAvailable() const override;
@@ -189,6 +196,9 @@ public:
     bool isBreakEnabled() const;
     QBindable<bool> bindableIsBreakEnabled();
 
+    bool settingsRestoredOnClose() const;
+    void setSettingsRestoredOnClose(bool restore);
+
     Handle handle() const;
 
 Q_SIGNALS:
@@ -201,6 +211,7 @@ Q_SIGNALS:
     void requestToSendChanged(bool set);
     void errorOccurred(QSerialPort::SerialPortError error);
     void breakEnabledChanged(bool set);
+    void settingsRestoredOnCloseChanged(bool restore);
 
 protected:
     qint64 readData(char *data, qint64 maxSize) override;

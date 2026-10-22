@@ -1,5 +1,6 @@
 // Copyright (C) 2016 Denis Shienkov <denis.shienkov@gmail.com>
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+// Qt-Security score:critical reason:data-parser
 
 #include "qserialportinfo.h"
 #include "qserialportinfo_p.h"
@@ -19,10 +20,12 @@ QT_BEGIN_NAMESPACE
 
 static QString deviceProperty(const QString &source, const QByteArray &pattern)
 {
-    const int firstbound = source.indexOf(QLatin1String(pattern));
+    const qsizetype firstbound = source.indexOf(QLatin1String(pattern));
     if (firstbound == -1)
         return QString();
-    const int lastbound = source.indexOf(QLatin1Char(' '), firstbound);
+    qsizetype lastbound = source.indexOf(QLatin1Char(' '), firstbound);
+    if (lastbound == -1)
+        lastbound = source.size();
     return source.mid(firstbound + pattern.size(), lastbound - firstbound - pattern.size());
 }
 
@@ -61,7 +64,7 @@ static QString deviceSerialNumber(const QString &pnpinfo)
 // which should be excluded from the result.
 static QString deviceDescriptionAndManufacturer(const QString &desc)
 {
-    const int classindex = desc.indexOf(QLatin1String(", class "));
+    const qsizetype classindex = desc.indexOf(QLatin1String(", class "));
     if (classindex == -1)
         return desc;
     return desc.mid(0, classindex);
@@ -97,6 +100,12 @@ static QList<int> nextOid(const QList<int> &previousOid)
 
     size_t requiredLength = 0;
     if (::sysctl(&mib[0], mib.count(), nullptr, &requiredLength, nullptr, 0) < 0)
+        return QList<int>();
+    // The returned length should not be zero, and should contain
+    // the whole amount of ints (OID components). Otherwise the next
+    // sysctl() call will either dereference the non-existing element
+    // or use the wrong length
+    if (requiredLength == 0 || requiredLength % sizeof(int) != 0)
         return QList<int>();
     const size_t oidLength = requiredLength / sizeof(int);
     QList<int> oid(oidLength, 0);
@@ -216,7 +225,7 @@ QList<QSerialPortInfo> QSerialPortInfo::availablePorts()
         priv.device = QSerialPortInfoPrivate::portNameToSystemLocation(portName);
 
         for (const NodeInfo &node : nodes) {
-            const int pnpinfoindex = node.name.indexOf(QLatin1String("\%pnpinfo"));
+            const qsizetype pnpinfoindex = node.name.indexOf(QLatin1String("\%pnpinfo"));
             if (pnpinfoindex == -1)
                 continue;
 
@@ -259,16 +268,16 @@ QList<QSerialPortInfo> QSerialPortInfo::availablePorts()
             const QString descnode = QString(QLatin1String("%1\%desc")).arg(nodebase);
 
             // search for description and manufacturer properties
-            for (const NodeInfo &node : nodes) {
-                if (node.name != descnode)
+            for (const NodeInfo &descriptionNode : nodes) {
+                if (descriptionNode.name != descnode)
                     continue;
 
-                if (node.value.isEmpty())
+                if (descriptionNode.value.isEmpty())
                     continue;
 
                 // We can not separate the description and the manufacturer
                 // properties from the node value, so lets just duplicate it.
-                priv.description = deviceDescriptionAndManufacturer(node.value);
+                priv.description = deviceDescriptionAndManufacturer(descriptionNode.value);
                 priv.manufacturer = priv.description;
                 break;
             }

@@ -11,8 +11,7 @@ Copyright: 2012 Denis Shienkov <denis.shienkov@gmail.com>,
            2012-2013 Laszlo Papp <lpapp@kde.org>,
 License: BSD-3-clause
 
-Files: conanfile.py
-       tests/*
+Files: tests/*
 Copyright: 2014 Denis Shienkov <denis.shienkov@gmail.com>
            2016-2021 The Qt Company Ltd.
 License: GPL-3 with Qt-1.0 exception
@@ -25,7 +24,7 @@ Copyright: 2011-2012 Denis Shienkov <denis.shienkov@gmail.com>,
 License: GFDL-NIV-1.3
 
 Files: debian/*
-Copyright: 2021 Patrick Franz <deltaone@debian.org>,
+Copyright: 2021-2026 Patrick Franz <deltaone@debian.org>,
            2021 Lu YaNing <dluyaning@gmail.com>
 License: LGPL-3 or GPL-2
 

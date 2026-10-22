@@ -2,6 +2,7 @@
 // Copyright (C) 2011 Sergey Belyashov <Sergey.Belyashov@gmail.com>
 // Copyright (C) 2012 Laszlo Papp <lpapp@kde.org>
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+// Qt-Security score:critical reason:data-parser
 
 #include "qserialportinfo.h"
 #include "qserialportinfo_p.h"
@@ -10,6 +11,7 @@
 #include <QtCore/qlockfile.h>
 #include <QtCore/qfile.h>
 #include <QtCore/qdir.h>
+#include <QtCore/qtenvironmentvariables.h>
 
 #include <private/qcore_unix_p.h>
 
@@ -22,6 +24,8 @@
 #include "qtudev_p.h"
 
 QT_BEGIN_NAMESPACE
+
+constexpr char SkipUdevEnvVarName[] = "QT_SERIALPORT_SKIP_UDEV_LOOKUP";
 
 static QStringList filteredDeviceFilePaths()
 {
@@ -148,11 +152,13 @@ static QString ueventProperty(const QDir &targetDir, const QByteArray &pattern)
 
     const QByteArray content = f.readAll();
 
-    const int firstbound = content.indexOf(pattern);
+    const qsizetype firstbound = content.indexOf(pattern);
     if (firstbound == -1)
         return QString();
 
-    const int lastbound = content.indexOf('\n', firstbound);
+    qsizetype lastbound = content.indexOf('\n', firstbound);
+    if (lastbound == -1)
+        lastbound = content.size();
     return QString::fromLatin1(
                 content.mid(firstbound + pattern.size(),
                             lastbound - firstbound - pattern.size()))
@@ -380,7 +386,7 @@ QList<QSerialPortInfo> availablePortsByUdev(bool &ok)
                         udev.get(), ::udev_list_entry_get_name(dev_list_entry)));
 
         if (!dev)
-            return serialPortInfoList;
+            continue;
 
         QSerialPortInfoPrivate priv;
 
@@ -414,9 +420,12 @@ QList<QSerialPortInfo> availablePortsByUdev(bool &ok)
 
 QList<QSerialPortInfo> QSerialPortInfo::availablePorts()
 {
-    bool ok;
+    bool ok = false;
+    QList<QSerialPortInfo> serialPortInfoList;
 
-    QList<QSerialPortInfo> serialPortInfoList = availablePortsByUdev(ok);
+    const bool skipUdevLookup = qEnvironmentVariableIsSet(SkipUdevEnvVarName);
+    if (!skipUdevLookup)
+        serialPortInfoList = availablePortsByUdev(ok);
 
 #ifdef Q_OS_LINUX
     if (!ok)

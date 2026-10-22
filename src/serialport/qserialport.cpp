@@ -3,6 +3,7 @@
 // Copyright (C) 2012 Laszlo Papp <lpapp@kde.org>
 // Copyright (C) 2012 Andre Hartmann <aha_1980@gmx.de>
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+// Qt-Security score:significant reason:default
 
 #include "qserialport.h"
 #include "qserialportinfo.h"
@@ -129,11 +130,11 @@ void QSerialPortPrivate::setError(const QSerialPortErrorInfo &errorInfo)
     See the following example:
 
     \code
-     int numRead = 0, numReadTotal = 0;
+     qint64 numReadTotal = 0;
      char buffer[50];
 
      for (;;) {
-         numRead  = serial.read(buffer, 50);
+         const qint64 numRead  = serial.read(buffer, 50);
 
          // Do whatever with the array
 
@@ -380,6 +381,13 @@ QSerialPort::~QSerialPort()
     The name of the serial port can be passed as either a short name or
     the long system location if necessary.
 
+    \note This function allows setting ports that are not included in the
+    \l{QSerialPortInfo::availablePorts()}{list of available ports}, or where
+    constructing a QSerialPortInfo instance with the name string yields a
+    \l{QSerialPortInfo::isNull}{null} object. If that is not a requirement, then
+    use setPort() instead after checking that the name results in a valid
+    QSerialPortInfo object.
+
     \sa portName(), QSerialPortInfo
 */
 void QSerialPort::setPortName(const QString &name)
@@ -433,12 +441,15 @@ QString QSerialPort::portName() const
     successful; otherwise returns \c false and sets an error code which can be
     obtained by calling the error() method.
 
-    \note The method returns \c false if opening the port is successful, but could
-    not set any of the port settings successfully. In that case, the port is
-    closed automatically not to leave the port around with incorrect settings.
+    If the port is opened, but setting the desired port parameters fails, the
+    method returns \c false and closes the port automatically.
 
     \warning The \a mode has to be QIODeviceBase::ReadOnly, QIODeviceBase::WriteOnly,
     or QIODeviceBase::ReadWrite. Other modes are unsupported.
+
+    \note Due to historical reasons, upon a successful open the
+    \l errorOccurred() signal is emitted with the \l {QSerialPort::}{NoError}
+    error code. This behavior is preserved to keep backwards compatibility.
 
     \sa QIODeviceBase::OpenMode, setPort()
 */
@@ -618,6 +629,11 @@ QBindable<QSerialPort::DataBits> QSerialPort::bindableDataBits()
     after that the opening of the port succeeds.
 
     The default value is NoParity, i.e. no parity.
+
+    \warning Some UNIX operating systems (i.e. \macOS) do not support
+    \l {https://www.man7.org/linux/man-pages/man3/termios.3.html#DESCRIPTION}
+    {the CMSPAR flag}. On such systems, setting \l {QSerialPort::Parity}
+    {Mark or Space} parity is not supported.
 */
 bool QSerialPort::setParity(Parity parity)
 {
@@ -1011,6 +1027,9 @@ qint64 QSerialPort::readBufferSize() const
     port should be protected against receiving too much data, which may
     eventually cause the application to run out of memory.
 
+    Passing a negative value disables the internal buffer, effectively blocking
+    any reads.
+
     \sa readBufferSize(), read()
 */
 void QSerialPort::setReadBufferSize(qint64 size)
@@ -1019,6 +1038,61 @@ void QSerialPort::setReadBufferSize(qint64 size)
     d->readBufferMaxSize = size;
     if (isReadable())
         d->startAsyncRead();
+}
+
+/*!
+    \since 6.10
+
+    Returns the size of the internal write buffer.
+
+    A write buffer size of \c 0 (the default) means that the buffer has
+    no size limit.
+
+    \sa setWriteBufferSize(), write()
+*/
+qint64 QSerialPort::writeBufferSize() const
+{
+    Q_D(const QSerialPort);
+    return d->writeBufferMaxSize;
+}
+
+/*!
+    \since 6.10
+
+    Sets the size of QSerialPort's internal write buffer to be \a
+    size bytes.
+
+    Sending data over a serial port is relatively slow, so in practice the data
+    is not sent immediately when \l write() is called. It is first stored in an
+    intermediate buffer and later written in chunks.
+
+    Thus, writing too much data, or writing it at a higher rate than the
+    underlying serial port can handle, can make the internal buffer grow. This
+    can eventually cause the application to run out of memory, especially on a
+    device with low memory resources.
+
+    This method allows limiting the internal buffer to a certain size. If the
+    next write attempt exceeds the capacity of the buffer, the \l write()
+    method returns the number of bytes that were actually stored in the buffer.
+    It is the user's responsibility to repeat the write attempt with the rest
+    of the bytes after the \l bytesWritten() signal is received, or after the
+    \l waitForBytesWritten() method returns \c true.
+
+    Passing \c 0 to this method means that the write buffer is not limited, and
+    all the data passed to \l write() is buffered. This is the default.
+
+    Passing a negative value has the same effect as passing \c 0.
+
+    \sa writeBufferSize(), write()
+*/
+void QSerialPort::setWriteBufferSize(qint64 size)
+{
+    Q_D(QSerialPort);
+    if (size < 0)
+        size = 0;
+    d->writeBufferMaxSize = size;
+    if (isWritable())
+        d->flush();
 }
 
 /*!
@@ -1169,6 +1243,52 @@ bool QSerialPort::isBreakEnabled() const
 QBindable<bool> QSerialPort::bindableIsBreakEnabled()
 {
     return &d_func()->isBreakEnabled;
+}
+
+/*!
+    \fn void QSerialPort::settingsRestoredOnCloseChanged(bool restore)
+    \since 6.9
+
+    This signal is emitted after the settingsRestoredOnClose property is
+    changed. The \a restore parameter contains the new value of the property.
+
+    \sa QSerialPort::settingsRestoredOnClose
+*/
+
+/*!
+    \property QSerialPort::settingsRestoredOnClose
+    \since 6.9
+    \brief This property defines if the port parameters should be restored on
+    close or not
+
+    After the port is opened, the class caches its parameters before applying
+    the parameters that are defined by the user.
+
+    If the property is \c true, the serial port tries to restore the cached
+    parameters before closing the port; otherwise the caches parameters are
+    discarded.
+
+    The default value is \c true.
+
+    \note This property may have no effect on some operating systems.
+    For example, \macOS seems to always restore the default serial port settings
+    when the port is closed.
+*/
+bool QSerialPort::settingsRestoredOnClose() const
+{
+    Q_D(const QSerialPort);
+    return d->settingsRestoredOnClose;
+}
+
+void QSerialPort::setSettingsRestoredOnClose(bool restore)
+{
+    Q_D(QSerialPort);
+
+    if (d->settingsRestoredOnClose == restore)
+        return;
+
+    d->settingsRestoredOnClose = restore;
+    emit settingsRestoredOnCloseChanged(restore);
 }
 
 /*!
